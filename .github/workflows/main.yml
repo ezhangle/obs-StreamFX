@@ -1,15 +1,7 @@
 name: Build
 
-on:
+on: 
   push:
-    tags:
-      - '[0-9].[0-9].[0-9]'
-      - '[0-9].[1-9][0-9].[1-9][0-9]'
-      - '[0-9].[1-9][0-9].[0-9]'
-      - '[1-9][0-9].[1-9][0-9].[1-9][0-9]'
-      - '[1-9][0-9].[1-9][0-9].[0-9]'
-      - '[1-9][0-9].[0-9].[1-9][0-9]'
-      - '[1-9][0-9].[0-9].[0-9]'
     branches-ignore:
       - 'l10n_master'
   pull_request:
@@ -40,10 +32,24 @@ jobs:
     - name: "Clone Submodules"
       shell: bash
       run: git submodule update --init --recursive
-    - name: "Configure Project"
+    - name: "Requirements: CMake"
       shell: bash
       run: |
-        cmake -H. -B"build/temp" -DCMAKE_PACKAGE_NAME="streamfx-${{ matrix.id }}" -DCMAKE_INSTALL_PREFIX="build/distrib" -DCMAKE_PACKAGE_PREFIX="build/package" -DOBS_DOWNLOAD=ON
+        curl -L "https://github.com/Kitware/CMake/releases/download/v3.18.0/cmake-3.18.0-win64-x64.msi" --output "cmake.msi"
+        MSYS_NO_PATHCONV=1 msiexec.exe /package "$(echo "${PWD}/cmake.msi" | sed 's/^\///' | sed 's/\//\\/g' | sed 's/^./\0:/')" \
+          /quiet /qn /passive /norestart ALLUSERS=true
+    - name: "Configure Project"
+      shell: bash
+      env:
+        CODESIGN_PASSWORD: "Hellowrodl"
+      run: |
+        cmake -H. -B"build/temp" \
+          -DCMAKE_PACKAGE_NAME="streamfx-${{ matrix.id }}" \
+          -DCMAKE_INSTALL_PREFIX="build/distrib" \
+          -DCMAKE_PACKAGE_PREFIX="build/package" \
+          -DOBS_DOWNLOAD=ON \
+          -DENABLE_CODESIGN=ON \
+          -DCODESIGN_CERTIFICATE="${PWD}/ci/certificate.pfx"
     - name: "Build Project"
       shell: bash
       run: |
